@@ -11,16 +11,13 @@ import (
 func CreateUser(c *gin.Context) {
 	var user users.User
 	if err := c.ShouldBindJSON(&user); err != nil {
-		restError := errors.RestErr{
-			Message: "invalid json body",
-			Status:  http.StatusBadRequest,
-			Error:   "bad_request",
-		}
+		restError := errors.NewBadRequestError("invalid json body")
 		c.JSON(restError.Status, restError)
 		return
 	}
 	result, saveErr := services.CreateUser(user)
 	if saveErr != nil {
+		c.JSON(saveErr.Status, saveErr)
 		return
 	}
 	c.JSON(http.StatusCreated, result)
