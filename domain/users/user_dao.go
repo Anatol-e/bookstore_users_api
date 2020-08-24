@@ -3,8 +3,11 @@ package users
 import (
 	"fmt"
 	"github.com/Anatol-e/bookstore_users_api/datasources/mysql/users_db"
-	"github.com/Anatol-e/bookstore_users_api/utils/date"
 	"github.com/Anatol-e/bookstore_users_api/utils/errors"
+)
+
+const (
+	queryInsertUser = "INSERT INTO users (firstname, lastname, email, date_created) VALUES(?,?,?,?);"
 )
 
 var usersDB = make(map[int64]*User)
@@ -27,10 +30,23 @@ func (user *User) Get() *errors.RestErr {
 }
 
 func (user *User) Save() *errors.RestErr {
-	if usersDB[user.Id] != nil {
-		return errors.NewBadRequestError(fmt.Sprintf("user %d already exists", user))
+	stmt, err := users_db.ClientDB.Prepare(queryInsertUser)
+	if err != nil {
+		return errors.NewInternalServerError(err.Error())
 	}
-	user.DateCreated = date.GetNowString()
-	usersDB[user.Id] = user
+	defer stmt.Close()
+
+	insertResult, err := stmt.Exec(user.FirstName, user.LastName, user.Email, user.DateCreated)
+	if err != nil {
+		return errors.NewInternalServerError(
+			fmt.Sprintf("error when trying to save user: %s", err.Error()))
+	}
+
+	userId, err := insertResult.LastInsertId()
+	if err != nil {
+		return errors.NewInternalServerError(
+			fmt.Sprintf("error when trying to save user: %s", err.Error()))
+	}
+	user.Id = userId
 	return nil
 }
