@@ -1,12 +1,29 @@
 package users
 
 import (
+	"github.com/Anatol-e/bookstore_users_api/domain/users"
+	"github.com/Anatol-e/bookstore_users_api/services"
+	"github.com/Anatol-e/bookstore_users_api/utils/errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
 func CreateUser(c *gin.Context) {
-	c.String(http.StatusNotImplemented, "implement me!")
+	var user users.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		restError := errors.RestErr{
+			Message: "invalid json body",
+			Status:  http.StatusBadRequest,
+			Error:   "bad_request",
+		}
+		c.JSON(restError.Status, restError)
+		return
+	}
+	result, saveErr := services.CreateUser(user)
+	if saveErr != nil {
+		return
+	}
+	c.JSON(http.StatusCreated, result)
 }
 
 func GetUser(c *gin.Context) {
