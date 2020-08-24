@@ -5,5 +5,6 @@ import "github.com/gin-gonic/gin"
 var router = gin.Default()
 
 func StartApplication() {
-	router.Run()
+	mapUrl()
+	router.Run(":8080")
 }
