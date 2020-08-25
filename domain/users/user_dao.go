@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"github.com/Anatol-e/bookstore_users_api/datasources/mysql/users_db"
 	"github.com/Anatol-e/bookstore_users_api/utils/errors"
+	"github.com/Anatol-e/bookstore_users_api/utils/mysql_utils"
+	"github.com/go-sql-driver/mysql"
 )
 
 const (
 	queryInsertUser = "INSERT INTO users (firstname, lastname, email, date_created) VALUES(?,?,?,?);"
-	queryGetUser    = "SELECT id, firstname, lastname, date_created FROM users WHERE id = ?;"
+	queryGetUser    = "SELECT id, firstname, lastname, email, date_created FROM users WHERE id = ?;"
+	queryUpdateUser = "UPDATE users SET firstname = ?, lastname = ?, email = ? WHERE id = ?;"
 )
 
 func (user *User) Get() *errors.RestErr {
@@ -19,7 +22,7 @@ func (user *User) Get() *errors.RestErr {
 	defer stmt.Close()
 
 	result := stmt.QueryRow(user.Id)
-	if err := result.Scan(&user.FirstName, &user.LastName, &user.Email, &user.DateCreated); err != nil {
+	if err := result.Scan(&user.Id, &user.FirstName, &user.LastName, &user.Email, &user.DateCreated); err != nil {
 		return errors.NewInternalServerError(fmt.Sprintf("error when trying to get user %d with an error %s",
 			user.Id, err.Error()))
 	}
@@ -35,8 +38,18 @@ func (user *User) Save() *errors.RestErr {
 
 	insertResult, err := stmt.Exec(user.FirstName, user.LastName, user.Email, user.DateCreated)
 	if err != nil {
-		return errors.NewInternalServerError(
-			fmt.Sprintf("error when trying to save user: %s", err.Error()))
+		sqlErr, ok := err.(*mysql.MySQLError)
+		if !ok {
+			return errors.NewInternalServerError(fmt.Sprintf("error when trying to get user %d with an error %s",
+				user.Id, err.Error()))
+		}
+
+		switch sqlErr.Number {
+		case 1062:
+			return errors.NewInternalServerError("email is already exists")
+		default:
+			return errors.NewInternalServerError(fmt.Sprintf("mysql cant save the user %d", user.Id))
+		}
 	}
 
 	userId, err := insertResult.LastInsertId()
@@ -45,5 +58,19 @@ func (user *User) Save() *errors.RestErr {
 			fmt.Sprintf("error when trying to save user: %s", err.Error()))
 	}
 	user.Id = userId
+	return nil
+}
+
+func (user *User) Update() *errors.RestErr {
+	stmt, err := users_db.ClientDB.Prepare(queryUpdateUser)
+	if err != nil {
+		return errors.NewInternalServerError(err.Error())
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(user.FirstName, user.LastName, user.Email, user.Id)
+	if err != nil {
+		return mysql_utils.ParseError(err)
+	}
 	return nil
 }
