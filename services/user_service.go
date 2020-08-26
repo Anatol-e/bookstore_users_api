@@ -6,7 +6,19 @@ import (
 	"github.com/Anatol-e/bookstore_users_api/utils/errors"
 )
 
-func GetUser(userId int64) (*users.User, *errors.RestErr) {
+var UserService userServiceInterface = &userService{}
+
+type userServiceInterface interface {
+	GetUser(int64) (*users.User, *errors.RestErr)
+	CreateUser(users.User) (*users.User, *errors.RestErr)
+	UpdateUser(users.User, bool) (*users.User, *errors.RestErr)
+	DeleteUser(int64) *errors.RestErr
+}
+
+type userService struct {
+}
+
+func (us *userService) GetUser(userId int64) (*users.User, *errors.RestErr) {
 	result := &users.User{Id: userId}
 	if err := result.Get(); err != nil {
 		return nil, err
@@ -14,7 +26,7 @@ func GetUser(userId int64) (*users.User, *errors.RestErr) {
 	return result, nil
 }
 
-func CreateUser(user users.User) (*users.User, *errors.RestErr) {
+func (us *userService) CreateUser(user users.User) (*users.User, *errors.RestErr) {
 	if err := user.Validate(); err != nil {
 		return nil, err
 	}
@@ -25,8 +37,8 @@ func CreateUser(user users.User) (*users.User, *errors.RestErr) {
 	return &user, nil
 }
 
-func UpdateUser(user users.User, isPartially bool) (*users.User, *errors.RestErr) {
-	current, err := GetUser(user.Id)
+func (us *userService) UpdateUser(user users.User, isPartially bool) (*users.User, *errors.RestErr) {
+	current, err := us.GetUser(user.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -51,4 +63,9 @@ func UpdateUser(user users.User, isPartially bool) (*users.User, *errors.RestErr
 		return nil, err
 	}
 	return current, nil
+}
+
+func (us *userService) DeleteUser(userId int64) *errors.RestErr {
+	user := &users.User{Id: userId}
+	return user.Delete()
 }
