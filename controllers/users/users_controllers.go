@@ -82,3 +82,17 @@ func Delete(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, map[string]string{"status": "deleted"})
 }
+
+func Login(c *gin.Context) {
+	var loginRequest users.LoginRequest
+	if err := c.ShouldBindJSON(&loginRequest); err != nil {
+		restError := errors.NewBadRequestError("invalid json body")
+		c.JSON(restError.Status, restError)
+		return
+	}
+	user, err := services.UserService.LoginUser(loginRequest)
+	if err != nil {
+		c.JSON(err.Status, err)
+	}
+	c.JSON(http.StatusOK, user)
+}
